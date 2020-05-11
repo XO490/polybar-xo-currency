@@ -1,6 +1,6 @@
 # Polybar XO Currency
 
-<img src="/home/xo/Pictures/pxoc-00.png" alt="pxoc-00" style="zoom:200%;" />
+<img src="img/pxoc-00.png" alt="pxoc-00" style="zoom:200%;" />
 
 
 
