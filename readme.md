@@ -1,4 +1,4 @@
-# Polybar XO Currency
+# [Polybar XO Currency](https://github.com/XO490/polybar-xo-currency)
 
 <img src="img/pxoc-00.png" alt="pxoc-00" style="zoom:200%;" />
 
