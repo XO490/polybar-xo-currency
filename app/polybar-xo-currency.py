@@ -1,11 +1,12 @@
 #!/usr/bin python
 # coding: utf-8
-# Polibar XO Currency
+# Polybar XO Currency
 # https://t.me/XO490
 
 BASE_URL = 'https://freecurrencyrates.com/api/action.php?do=cvals&iso={}&f={}&v={}&s=cbr'
 useragent = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:76.0) Gecko/20100101 Firefox/76.0'}
 proxy = None
+# proxy = {'http': 'http://45.76.255.75:3128'} # you favourites proxy
 
 import requests
 import sys
