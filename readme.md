@@ -19,6 +19,8 @@ cp polybar-xo-currency.py ~/.config/polybar/scripts
 Add to your polybar config:
 
 ```
+modules-right = usdrate eurrate btcrate
+
 # Polybar-XO-Currency
 [module/usdrate]
 format = <label>
