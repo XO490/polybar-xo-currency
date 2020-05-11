@@ -54,13 +54,13 @@ https://fontawesome.com/cheatsheet
 ```
 sudo pacman -S ttf-font-awesome
 ```
+And add font to you polybar config:
 
-And add to your polybar config:
+
+```
+FontAwesome5Free:style=Solid:size=7.5;2.5
+```
 https://github.com/polybar/polybar/wiki/Fonts
-
-```
-FontAwesome5Pro:style=Solid:size=7.5;2.5
-```
 
 
 
