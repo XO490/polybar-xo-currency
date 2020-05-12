@@ -3,10 +3,10 @@
 # Polybar XO Currency
 # https://t.me/XO490
 
-BASE_URL = 'https://freecurrencyrates.com/api/action.php?do=cvals&iso={}&f={}&v={}&s=cbr'
+BASE_URL = 'https://wfreecurrencyrates.com/api/action.php?do=cvals&iso={}&f={}&v={}&s=cbr'
 useragent = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:76.0) Gecko/20100101 Firefox/76.0'}
 proxy = None
-# proxy = {'http': 'http://45.76.255.75:3128'} # you favourites proxy
+# proxy = {'http': 'http://45.76.255.75:3128'}  # you favourites proxy
 
 import requests
 import sys
@@ -22,8 +22,8 @@ def get_response(mycur, anycur, value=None):
                          timeout=60,
                          allow_redirects=True)
         r.encoding = 'utf-8'
-    except Exception as e:
-        print(f'[Err] get_response\n     \-{e}')
+    except requests.exceptions.ConnectionError as e:
+        print(f'[Err] get_response\n     \--{e}')
     else:
         return r.json()
 
@@ -31,7 +31,7 @@ def get_response(mycur, anycur, value=None):
 def get_attr():
     argv = sys.argv
     if (len(argv) < 3) or (len(argv) > 4):
-        sys.exit('\nUSAGE:\n\tExemple: python main.py rub usd\n\t\t python main.py rub eur 2\n')
+        sys.exit('\nUSAGE:\n\tExample: python main.py rub usd\n\t\t python main.py rub eur 2\n')
     if (len(argv) == 3):
         mycur = argv[1]
         anycur = argv[2]
