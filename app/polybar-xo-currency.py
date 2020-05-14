@@ -10,6 +10,25 @@ proxy = None
 
 import requests
 import sys
+import json
+
+
+def save_json(data, filename):
+    if data:
+        with open(f'/tmp/{filename}', 'w') as file:
+            json.dump(data, file, ensure_ascii=False)
+
+
+def open_json(filename):
+    try:
+        with open(f'/tmp/{filename}', 'r') as file:
+            data = json.load(file)
+    except:
+        mycur = filename.split('_')[0].upper()
+        data = {"updated": "", mycur: 0}
+        return data
+    else:
+        return data
 
 
 def get_response(mycur, anycur, value=None):
@@ -22,8 +41,8 @@ def get_response(mycur, anycur, value=None):
                          timeout=60,
                          allow_redirects=True)
         r.encoding = 'utf-8'
-    except requests.exceptions.ConnectionError as e:
-        print(f'[Err] get_response\n     \--{e}')
+    except:
+        return None
     else:
         return r.json()
 
@@ -46,16 +65,23 @@ def get_attr():
 
 def main():
     attr = get_attr()
-    mycur = attr['mycur'].upper()
-    anycur = attr['anycur']
+    mycur = attr.get('mycur')
+    anycur = attr.get('anycur')
     value = attr.get('value')
+    filename_saveopen_json = f'{mycur}_{anycur}.json'
     try:
         resp = get_response(mycur, anycur, value=value)
     except:
         print('ISO currency code error')
     else:
-        curs = round(resp[mycur], 2)
-        print(curs)
+        if resp is not None:
+            save_json(resp, filename_saveopen_json)
+            curs = round(resp[mycur.upper()], 2)
+            print(f'{curs}')
+        else:
+            resp = open_json(filename_saveopen_json)
+            curs = round(resp[mycur.upper()], 2)
+            print(f'{curs}!')
 
 
 if __name__ == "__main__":
