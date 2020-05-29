@@ -42,7 +42,7 @@ format = <label>
 label = %{F#666666}%output%
 type = custom/script
 exec = "python ~/.config/polybar/scripts/polybar-xo-currency.py --blockchain btc"
-interval=600
+interval=30
 ```
 
 
@@ -75,7 +75,7 @@ python polybar-xo-currency.py rub usd 10
 python polybar-xo-currency.py usd eur
 1.08
 python polybar-xo-currency.py --blockchain btc
-46.23
+9520.72
 ```
 
 etc..
