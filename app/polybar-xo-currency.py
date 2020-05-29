@@ -4,6 +4,7 @@
 # https://t.me/XO490
 
 BASE_URL = 'https://freecurrencyrates.com/api/action.php?do=cvals&iso={}&f={}&v={}&s=cbr'
+BASE_URL_BC = 'https://blockchain.info/ticker?base={}'
 useragent = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:76.0) Gecko/20100101 Firefox/76.0'}
 proxy = None
 # proxy = {'http': 'http://45.76.255.75:3128'}  # you favourites proxy
@@ -35,11 +36,18 @@ def get_response(mycur, anycur, value=None):
     try:
         if value is None:
             value = 1
-        r = requests.get(url=BASE_URL.format(mycur, anycur, value),
+        if mycur == '--blockchain':
+            r = requests.get(url=BASE_URL_BC.format(anycur),
                          headers=useragent,
                          proxies=proxy,
                          timeout=60,
                          allow_redirects=True)
+        else:
+            r = requests.get(url=BASE_URL.format(mycur, anycur, value),
+                            headers=useragent,
+                            proxies=proxy,
+                            timeout=60,
+                            allow_redirects=True)
         r.encoding = 'utf-8'
     except:
         return None
@@ -68,20 +76,51 @@ def main():
     mycur = attr.get('mycur')
     anycur = attr.get('anycur')
     value = attr.get('value')
-    filename_saveopen_json = f'{mycur}_{anycur}.json'
-    try:
-        resp = get_response(mycur, anycur, value=value)
-    except:
-        print('ISO currency code error')
-    else:
-        if resp is not None:
-            save_json(resp, filename_saveopen_json)
-            curs = round(resp[mycur.upper()], 2)
-            print(f'{curs}')
+
+    if mycur == '--blockchain':
+        filename_saveopen_json = f'{anycur}.json'
+        try:
+            resp = get_response(mycur, anycur, value=value)
+        except:
+            print('ISO currency code error')
         else:
-            resp = open_json(filename_saveopen_json)
-            curs = round(resp[mycur.upper()], 2)
-            print(f'{curs}!')
+            if resp is not None:
+                save_json(resp, filename_saveopen_json)
+                curs = resp['USD']['15m']
+                print(f'{curs}')
+            else:
+                resp = open_json(filename_saveopen_json)
+                curs = resp['USD']['15m']
+                print(f'{curs}!')
+    else:
+        filename_saveopen_json = f'{mycur}_{anycur}.json'
+        try:
+            resp = get_response(mycur, anycur, value=value)
+        except:
+            print('ISO currency code error')
+        else:
+            if resp is not None:
+                save_json(resp, filename_saveopen_json)
+                curs = round(resp[mycur.upper()], 2)
+                print(f'{curs}')
+            else:
+                resp = open_json(filename_saveopen_json)
+                curs = round(resp[mycur.upper()], 2)
+                print(f'{curs}!')
+
+    # try:
+    #     resp = get_response(mycur, anycur, value=value)
+    # except:
+    #     print('ISO currency code error')
+    # else:
+    #     if resp is not None:
+    #         save_json(resp, filename_saveopen_json)
+    #         curs = round(resp[mycur.upper()], 2)
+    #         print(f'{curs}')
+    #     else:
+    #         resp = open_json(filename_saveopen_json)
+    #         curs = round(resp[mycur.upper()], 2)
+    #         print(f'{curs}!')
 
 
 if __name__ == "__main__":
