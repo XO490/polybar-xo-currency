@@ -8,6 +8,7 @@
 
 ```
 git clone https://github.com/XO490/polybar-xo-currency.git
+git checkout blockchain
 cd polybar-xo-currency/app
 cp polybar-xo-currency.py ~/.config/polybar/scripts
 ```
@@ -40,7 +41,7 @@ interval=600
 format = <label>
 label = %{F#666666}%output%
 type = custom/script
-exec = "python ~/.config/polybar/scripts/polybar-xo-currency.py usd btc"
+exec = "python ~/.config/polybar/scripts/polybar-xo-currency.py --blockchain btc"
 interval=600
 ```
 
@@ -73,7 +74,7 @@ python polybar-xo-currency.py rub usd 10
 738.73
 python polybar-xo-currency.py usd eur
 1.08
-python polybar-xo-currency.py eth btc
+python polybar-xo-currency.py --blockchain btc
 46.23
 ```
 
@@ -82,6 +83,12 @@ etc..
 
 
 ### All Supported Currencies
+
+**For BlockChain**
+
+- https://www.blockchain.com/prices
+
+
 
 **Select by code**
 
