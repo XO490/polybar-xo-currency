@@ -1,11 +1,11 @@
-#!/usr/bin python
+#!/usr/bin/env python
 # coding: utf-8
 # Polybar XO Currency
 # https://t.me/XO490
 
 BASE_URL = 'https://freecurrencyrates.com/api/action.php?do=cvals&iso={}&f={}&v={}&s=cbr'
 BASE_URL_BC = 'https://blockchain.info/ticker?base={}'
-BASE_URL_CMC = 'https://coinmarketcap.com/'
+BASE_URL_CMC = 'https://coinmarketcap.com/all/views/all/'
 useragent = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:76.0) Gecko/20100101 Firefox/76.0'}
 proxy = None
 # proxy = {'http': 'http://45.76.255.75:3128'}  # you favourites proxy
@@ -13,12 +13,13 @@ proxy = None
 import requests
 import sys
 import json
+from bs4 import BeautifulSoup
 
 
 def save_json(data, filename):
     if data:
         with open(f'/tmp/{filename}', 'w') as file:
-            json.dump(data, file, ensure_ascii=False)
+            json.dump(data, file, ensure_ascii=False, indent=4)
 
 
 def open_json(filename):
@@ -26,7 +27,6 @@ def open_json(filename):
         with open(f'/tmp/{filename}', 'r') as file:
             data = json.load(file)
     except:
-        mycur = filename.split('_')[0].upper()
         return None
     else:
         return data
@@ -43,7 +43,59 @@ def get_response(url):
     except:
         return None
     else:
-        return r.json()
+        return r
+
+
+def get_coinmarketcap_data(html):
+    if html is None:
+        sys.exit('[Err] get_coinmarketcap_data: HTML is None')
+    try:
+        soup = BeautifulSoup(html.text, 'lxml')
+        parser = soup.find_all('div', class_='cmc-table__table-wrapper-outer')[2]
+        trs = parser.find_all('tr')[1:]
+        data = []
+        for tr in trs:
+            tds = tr.find_all('td')
+
+            name = tds[1].text
+            symbol = tds[2].text
+            price = (tds[4].text).replace('$', '').replace(',', '')
+            h1 = tds[7].text
+            h24 = tds[8].text
+            d7 = tds[9].text
+
+            data.append({symbol: {
+                         'name': name,
+                         'price': price,
+                         '1h': h1,
+                         '24h': h24,
+                         '7d': d7}})
+
+        jdata = {'coins': data}
+    except EnvironmentError as e:
+        print(f'[Err] get_coinmarketcap_data:\n     \--{e}')
+    else:
+        save_json(jdata, 'coinmarketcap.json')
+        return True
+
+
+def get_coinmarketcap_price(coin_symbol, changes=False):
+    if coin_symbol is None:
+        sys.exit('[Err] get_coin_price: coin_symbol is None.')
+    try:
+        symbol = coin_symbol.upper()
+        coin = open_json('coinmarketcap.json')['coins'][0][symbol]
+        price = coin['price']
+        hour = coin['1h']
+        day = coin['24h']
+        week = coin['7d']
+    except Exception as e:
+        print(f'[Err] get_coin_price:\n     \-{e}')
+    else:
+        if changes:
+            print(f'{price} {hour} {day} {week}')
+        else:
+            print(price)
 
 
 def get_attr():
@@ -71,7 +123,7 @@ def main():
     if mycur == '--blockchain':
         filename_saveopen_json = f'{anycur}.json'
         try:
-            resp = get_response(BASE_URL_BC.format(anycur))
+            resp = get_response(BASE_URL_BC.format(anycur)).json()
         except:
             print('ISO currency code error')
         else:
@@ -91,7 +143,7 @@ def main():
         try:
             if value is None:
                 value = 1
-            resp = get_response(BASE_URL.format(mycur, anycur, value))
+            resp = get_response(BASE_URL.format(mycur, anycur, value)).json()
         except:
             print('ISO currency code error')
         else:
@@ -109,4 +161,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    resp = get_coinmarketcap_data(get_response(BASE_URL_CMC))
+    if resp:
+        get_coinmarketcap_price('btc', changes=True)
+    # main()
