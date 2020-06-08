@@ -12,7 +12,7 @@ proxy = None
 
 import argparse
 import requests
-import sys
+import os
 import json
 from bs4 import BeautifulSoup
 
@@ -49,7 +49,7 @@ def get_response(url):
 
 def get_coinmarketcap_data(html):
     if html is None:
-        sys.exit('[Err] get_coinmarketcap_data: HTML is None')
+        return None
     try:
         soup = BeautifulSoup(html.text, 'lxml')
         parser = soup.find_all('div', class_='cmc-table__table-wrapper-outer')[2]
@@ -81,24 +81,23 @@ def get_coinmarketcap_data(html):
 def get_fiat_fcr(base, quote, value):
     filename_saveopen_json = f'{quote}_{base}.json'
     try:
-        resp = get_response(BASE_URL.format(quote, base, value)).json()
+        resp = get_response(BASE_URL.format(quote, base, value))
     except:
-        print('ISO currency code error')
-    else:
-        if resp is not None:
-            save_json(resp, filename_saveopen_json)
-            exchange_rate = round(resp[quote], 2)
-            # print(f'{exchange_rate}')
+        pass
+    if resp is not None:
+        if resp.status_code == 500:
+            return resp.text
+        if resp.status_code == 200:
+            save_json(resp.json(), filename_saveopen_json)
+            exchange_rate = round(resp.json()[quote], 2)
             return f'{exchange_rate}'
+    else:
+        resp = open_json(filename_saveopen_json)
+        if resp is None:
+            return '!'
         else:
-            resp = open_json(filename_saveopen_json)
-            if resp is None:
-                # print('!')
-                return '!'
-            else:
-                exchange_rate = round(resp[quote], 2)
-                # print(f'{exchange_rate}!')
-                return f'{exchange_rate}!'
+            exchange_rate = round(resp[quote], 2)
+            return f'{exchange_rate}!'
 
 
 def get_crypto_bc(base, quote, value):
@@ -106,25 +105,24 @@ def get_crypto_bc(base, quote, value):
     try:
         resp = get_response(BASE_URL_BC.format(base)).json()
     except:
-        print('ISO currency code error')
+        resp = None
+    if resp is not None:
+        save_json(resp, filename_saveopen_json)
+        if resp.get(quote):
+            exchange_rate = resp[quote]['last']
+        else:
+            exchange_rate = f'unknown currency: {quote}'
+        return f'{exchange_rate}'
     else:
-        if resp is not None:
-            save_json(resp, filename_saveopen_json)
+        resp = open_json(filename_saveopen_json)
+        if resp is None:
+            return '!'
+        else:
             if resp.get(quote):
                 exchange_rate = resp[quote]['last']
             else:
-                exchange_rate = f'ISO currency({quote}) code error'
-            print(f'{exchange_rate}')
-        else:
-            resp = open_json(filename_saveopen_json)
-            if resp is None:
-                print('!')
-            else:
-                if resp.get(quote):
-                    exchange_rate = resp[quote]['last']
-                else:
-                    exchange_rate = f'ISO currency({quote}) code error'
-                print(f'{exchange_rate}!')
+                exchange_rate = f'unknown currency: {quote}'
+            return f'{exchange_rate}!'
 
 
 def get_crypto_cmc(base, quote, value, changes):
@@ -132,17 +130,24 @@ def get_crypto_cmc(base, quote, value, changes):
     def get_price():
         try:
             if base != 'USD':
+                if open_json('coinmarketcap.json')['coins'].get(base):
+                    coin = open_json('coinmarketcap.json')['coins'].get(base)
+                else:
+                    return f'unknown currency: {base}'
                 another_quote = get_fiat_fcr('USD', quote, value)
-                coin = open_json('coinmarketcap.json')['coins'][base]
-                price = round(float(coin['price']) * float(another_quote), 6)
+                if another_quote.isdigit():
+                    price = round(float(coin['price']) * float(another_quote), 6)
+                else:
+                    another_quote = another_quote.split('!')[0]
+                    price = round(float(coin['price']) * float(another_quote), 6)
             else:
                 coin = open_json('coinmarketcap.json')['coins'][quote]
                 price = coin['price']
             hour = coin['hour']
             day = coin['day']
             week = coin['week']
-        except EnvironmentError as e:
-            print(f'[Err] get_crypto_cmc> get_price:\n     \-{e}')
+        except:
+            pass
         else:
             if changes:
                 if changes == 'all':
@@ -153,11 +158,13 @@ def get_crypto_cmc(base, quote, value, changes):
                 return price
 
     resp = get_coinmarketcap_data(get_response(BASE_URL_CMC))
-    price = get_price()
     if resp:
-        print(price)
+        return get_price()
     else:
-        print(f'{price}!')
+        path = '/tmp/coinmarketcap.json'
+        if os.path.exists(path) is not True:
+            return '!'
+        return f'{get_price()}!'
 
 
 def get_args():
@@ -200,10 +207,12 @@ def get_args():
         print(fiat)
 
     if crypto == 'bc':
-        get_crypto_bc(base=base, quote=quote, value=value)
+        bc = get_crypto_bc(base=base, quote=quote, value=value)
+        print(bc)
 
     if crypto == 'cmc':
-        get_crypto_cmc(base=base, quote=quote, value=value, changes=changes)
+        cmc = get_crypto_cmc(base=base, quote=quote, value=value, changes=changes)
+        print(cmc)
 
 
 if __name__ == "__main__":
