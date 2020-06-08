@@ -10,6 +10,7 @@ useragent = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:76.0) Gecko/20100
 proxy = None
 # proxy = {'http': 'http://45.76.255.75:3128'}  # you favourites proxy
 
+import argparse
 import requests
 import sys
 import json
@@ -53,115 +54,157 @@ def get_coinmarketcap_data(html):
         soup = BeautifulSoup(html.text, 'lxml')
         parser = soup.find_all('div', class_='cmc-table__table-wrapper-outer')[2]
         trs = parser.find_all('tr')[1:]
-        data = []
+        coins = {}
         for tr in trs:
             tds = tr.find_all('td')
 
             name = tds[1].text
             symbol = tds[2].text
             price = (tds[4].text).replace('$', '').replace(',', '')
-            h1 = tds[7].text
-            h24 = tds[8].text
-            d7 = tds[9].text
+            hour = tds[7].text
+            day = tds[8].text
+            week = tds[9].text
 
-            data.append({symbol: {
+            coins.update({symbol: {
                          'name': name,
                          'price': price,
-                         '1h': h1,
-                         '24h': h24,
-                         '7d': d7}})
-
-        jdata = {'coins': data}
+                         'hour': hour,
+                         'day': day,
+                         'week': week}})
     except EnvironmentError as e:
         print(f'[Err] get_coinmarketcap_data:\n     \--{e}')
     else:
-        save_json(jdata, 'coinmarketcap.json')
+        save_json({'coins': coins}, 'coinmarketcap.json')
         return True
 
 
-def get_coinmarketcap_price(coin_symbol, changes=False):
-    if coin_symbol is None:
-        sys.exit('[Err] get_coin_price: coin_symbol is None.')
+def get_fiat_fcr(base, quote, value):
+    filename_saveopen_json = f'{quote}_{base}.json'
     try:
-        symbol = coin_symbol.upper()
-        coin = open_json('coinmarketcap.json')['coins'][0][symbol]
-        price = coin['price']
-        hour = coin['1h']
-        day = coin['24h']
-        week = coin['7d']
-    except Exception as e:
-        print(f'[Err] get_coin_price:\n     \-{e}')
+        resp = get_response(BASE_URL.format(quote, base, value)).json()
+    except:
+        print('ISO currency code error')
     else:
-        if changes:
-            print(f'{price} {hour} {day} {week}')
+        if resp is not None:
+            save_json(resp, filename_saveopen_json)
+            exchange_rate = round(resp[quote], 2)
+            # print(f'{exchange_rate}')
+            return f'{exchange_rate}'
         else:
-            print(price)
-
-
-def get_attr():
-    argv = sys.argv
-    if (len(argv) < 3) or (len(argv) > 4):
-        sys.exit('\nUSAGE:\n\tExample: python main.py rub usd\n\t\t python main.py rub eur 2\n')
-    if (len(argv) == 3):
-        mycur = argv[1]
-        anycur = argv[2]
-        data = {'mycur': mycur, 'anycur': anycur}
-    if (len(argv) == 4):
-        mycur = argv[1]
-        anycur = argv[2]
-        value = argv[3]
-        data = {'mycur': mycur, 'anycur': anycur, 'value': value}
-    return data
-
-
-def main():
-    attr = get_attr()
-    mycur = attr.get('mycur')
-    anycur = attr.get('anycur')
-    value = attr.get('value')
-
-    if mycur == '--blockchain':
-        filename_saveopen_json = f'{anycur}.json'
-        try:
-            resp = get_response(BASE_URL_BC.format(anycur)).json()
-        except:
-            print('ISO currency code error')
-        else:
-            if resp is not None:
-                save_json(resp, filename_saveopen_json)
-                curs = resp['USD']['15m']
-                print(f'{curs}')
+            resp = open_json(filename_saveopen_json)
+            if resp is None:
+                # print('!')
+                return '!'
             else:
-                resp = open_json(filename_saveopen_json)
-                if resp is None:
-                    print('!')
-                else:
-                    curs = resp['USD']['15m']
-                    print(f'{curs}!')
+                exchange_rate = round(resp[quote], 2)
+                # print(f'{exchange_rate}!')
+                return f'{exchange_rate}!'
+
+
+def get_crypto_bc(base, quote, value):
+    filename_saveopen_json = f'{base}.json'
+    try:
+        resp = get_response(BASE_URL_BC.format(base)).json()
+    except:
+        print('ISO currency code error')
     else:
-        filename_saveopen_json = f'{mycur}_{anycur}.json'
-        try:
-            if value is None:
-                value = 1
-            resp = get_response(BASE_URL.format(mycur, anycur, value)).json()
-        except:
-            print('ISO currency code error')
-        else:
-            if resp is not None:
-                save_json(resp, filename_saveopen_json)
-                curs = round(resp[mycur.upper()], 2)
-                print(f'{curs}')
+        if resp is not None:
+            save_json(resp, filename_saveopen_json)
+            if resp.get(quote):
+                exchange_rate = resp[quote]['last']
             else:
-                resp = open_json(filename_saveopen_json)
-                if resp is None:
-                    print('!')
+                exchange_rate = f'ISO currency({quote}) code error'
+            print(f'{exchange_rate}')
+        else:
+            resp = open_json(filename_saveopen_json)
+            if resp is None:
+                print('!')
+            else:
+                if resp.get(quote):
+                    exchange_rate = resp[quote]['last']
                 else:
-                    curs = round(resp[mycur.upper()], 2)
-                    print(f'{curs}!')
+                    exchange_rate = f'ISO currency({quote}) code error'
+                print(f'{exchange_rate}!')
+
+
+def get_crypto_cmc(base, quote, value, changes):
+
+    def get_price():
+        try:
+            if base != 'USD':
+                another_quote = get_fiat_fcr('USD', quote, value)
+                coin = open_json('coinmarketcap.json')['coins'][base]
+                price = round(float(coin['price']) * float(another_quote), 6)
+            else:
+                coin = open_json('coinmarketcap.json')['coins'][quote]
+                price = coin['price']
+            hour = coin['hour']
+            day = coin['day']
+            week = coin['week']
+        except EnvironmentError as e:
+            print(f'[Err] get_crypto_cmc> get_price:\n     \-{e}')
+        else:
+            if changes:
+                if changes == 'all':
+                    return f'{price} {hour} {day} {week}'
+                else:
+                    return f'{price} {coin[changes]}'
+            else:
+                return price
+
+    resp = get_coinmarketcap_data(get_response(BASE_URL_CMC))
+    price = get_price()
+    if resp:
+        print(price)
+    else:
+        print(f'{price}!')
+
+
+def get_args():
+    parser = argparse.ArgumentParser(description='Polybar XO Crypto and Fiat currency.')
+    parser.add_argument('--fiat',
+                        choices=['fcr'],
+                        type=str,
+                        help='For fiat currency and basic crypto')
+    parser.add_argument('--crypto',
+                        choices=['bc', 'cmc'],
+                        type=str,
+                        help='For advanced crypto currency')
+    parser.add_argument('--base',
+                        type=str,
+                        help='Base coin, default USD',
+                        default='USD')
+    parser.add_argument('quote',
+                        type=str,
+                        help='The quote coin')
+    parser.add_argument('-v', '--value',
+                        type=int,
+                        help='Currency calculator, example: --base USD BTC -v 4',
+                        default=1)
+    parser.add_argument('--changes',
+                        type=str,
+                        choices=['all', 'hour', 'day', 'week'],
+                        help='Show changes for 1h, 24h, 7d. Only for --crypto cmc',
+                        default=False)
+    args = parser.parse_args()
+
+    fiat = args.fiat
+    crypto = args.crypto
+    base = (args.base).upper()
+    quote = args.quote.upper()
+    value = args.value
+    changes = args.changes
+
+    if fiat is None and crypto is None or fiat == 'fcr':
+        fiat = get_fiat_fcr(base=base, quote=quote, value=value)
+        print(fiat)
+
+    if crypto == 'bc':
+        get_crypto_bc(base=base, quote=quote, value=value)
+
+    if crypto == 'cmc':
+        get_crypto_cmc(base=base, quote=quote, value=value, changes=changes)
 
 
 if __name__ == "__main__":
-    resp = get_coinmarketcap_data(get_response(BASE_URL_CMC))
-    if resp:
-        get_coinmarketcap_price('btc', changes=True)
-    # main()
+    get_args()
