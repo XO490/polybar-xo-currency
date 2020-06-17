@@ -71,8 +71,8 @@ def get_coinmarketcap_data(html):
                          'hour': hour,
                          'day': day,
                          'week': week}})
-    except EnvironmentError as e:
-        print(f'[Err] get_coinmarketcap_data:\n     \--{e}')
+    except:
+        return False
     else:
         save_json({'coins': coins}, 'coinmarketcap.json')
         return True
@@ -136,10 +136,10 @@ def get_crypto_cmc(base, quote, value, changes):
                     return f'unknown currency: {base}'
                 another_quote = get_fiat_fcr('USD', quote, value)
                 if another_quote.isdigit():
-                    price = round(float(coin['price']) * float(another_quote), 6)
+                    price = round(float(coin['price']) * float(another_quote), 2)
                 else:
                     another_quote = another_quote.split('!')[0]
-                    price = round(float(coin['price']) * float(another_quote), 6)
+                    price = round(float(coin['price']) * float(another_quote), 2)
             else:
                 coin = open_json('coinmarketcap.json')['coins'][quote]
                 price = coin['price']
