@@ -15,6 +15,8 @@ import requests
 import os
 import json
 from bs4 import BeautifulSoup
+from requests import Session
+from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
 
 
 def save_json(data, filename):
@@ -125,46 +127,93 @@ def get_crypto_bc(base, quote, value):
             return f'{exchange_rate}!'
 
 
-def get_crypto_cmc(base, quote, value, changes):
+# def get_crypto_cmc(base, quote, value, changes):
 
-    def get_price():
-        try:
-            if base != 'USD':
-                if open_json('coinmarketcap.json')['coins'].get(base):
-                    coin = open_json('coinmarketcap.json')['coins'].get(base)
-                else:
-                    return f'unknown currency: {base}'
-                another_quote = get_fiat_fcr('USD', quote, value)
-                if another_quote.isdigit():
-                    price = round(float(coin['price']) * float(another_quote), 2)
-                else:
-                    another_quote = another_quote.split('!')[0]
-                    price = round(float(coin['price']) * float(another_quote), 2)
-            else:
-                coin = open_json('coinmarketcap.json')['coins'][quote]
-                price = coin['price']
-            hour = coin['hour']
-            day = coin['day']
-            week = coin['week']
-        except:
-            pass
-        else:
-            if changes:
-                if changes == 'all':
-                    return f'{price} {hour} {day} {week}'
-                else:
-                    return f'{price} {coin[changes]}'
-            else:
-                return price
+#     def get_price():
+#         try:
+#             if base != 'USD':
+#                 if open_json('coinmarketcap.json')['coins'].get(base):
+#                     coin = open_json('coinmarketcap.json')['coins'].get(base)
+#                 else:
+#                     return f'unknown currency: {base}'
+#                 another_quote = get_fiat_fcr('USD', quote, value)
+#                 if another_quote.isdigit():
+#                     price = round(float(coin['price']) * float(another_quote), 2)
+#                 else:
+#                     another_quote = another_quote.split('!')[0]
+#                     price = round(float(coin['price']) * float(another_quote), 2)
+#             else:
+#                 coin = open_json('coinmarketcap.json')['coins'][quote]
+#                 price = coin['price']
+#             hour = coin['hour']
+#             day = coin['day']
+#             week = coin['week']
+#         except:
+#             pass
+#         else:
+#             if changes:
+#                 if changes == 'all':
+#                     return f'{price} {hour} {day} {week}'
+#                 else:
+#                     return f'{price} {coin[changes]}'
+#             else:
+#                 return price
 
-    resp = get_coinmarketcap_data(get_response(BASE_URL_CMC))
-    if resp:
-        return get_price()
+#     resp = get_coinmarketcap_data(get_response(BASE_URL_CMC))
+#     if resp:
+#         return get_price()
+#     else:
+#         path = '/tmp/coinmarketcap.json'
+#         if os.path.exists(path) is not True:
+#             return '!'
+#         return f'{get_price()}!'
+
+
+def get_cmc_api_currency(url=None, symbol=None, accuracy=2, base='USD', changes=None):
+    if url is None:
+        url = 'https://web-api.coinmarketcap.com/v1/cryptocurrency/listings/latest'
+    parameters = {
+        'start': '1',
+        'limit': '5000',
+        'convert': f'{base}'}
+    headers = {
+        'Accepts': 'application/json',
+        'X-CMC_PRO_API_KEY': 'b54bcf4d-1bca-4e8e-9a24-22ff2c3d462c', }
+
+    session = Session()
+    session.headers.update(headers)
+
+    try:
+        response = session.get(url, params=parameters)
+        data = json.loads(response.text)
+    except (ConnectionError, Timeout, TooManyRedirects) as err:
+        print(err)
+        return err
     else:
-        path = '/tmp/coinmarketcap.json'
-        if os.path.exists(path) is not True:
-            return '!'
-        return f'{get_price()}!'
+        # with open('response.json', 'w') as file:
+            # json.dump(data, file, ensure_ascii=False, indent=4)
+        # print(data['data'][0])
+
+        def get_msg_currency(symbol=None):
+            for coin in data['data']:
+                if coin['symbol'] == symbol:
+                    currecy = coin['quote'][f'{base}']['price']
+                    if changes:
+                        ch = coin['quote'][f'{base}'][f'percent_change_{changes}']
+                        change = f' {ch:.2f}% {changes}'
+                    else:
+                        change = ''
+                    msg = f'{currecy:.{accuracy}f}{change}'
+                    return msg
+
+        symbol = symbol.upper()
+        if symbol is not None:
+            msg_currency = get_msg_currency(symbol=symbol)
+        if msg_currency is not None:
+            return msg_currency
+        else:
+            print('Wrong symbol..')
+            return 'Wrong symbol..'
 
 
 def get_args():
@@ -190,8 +239,13 @@ def get_args():
                         default=1)
     parser.add_argument('--changes',
                         type=str,
-                        choices=['all', 'hour', 'day', 'week'],
+                        choices=['1h', '24h', '7d'],
                         help='Show changes for 1h, 24h, 7d. Only for --crypto cmc',
+                        default=False)
+    parser.add_argument('--accuracy',
+                        type=str,
+                        choices=['0', '1', '2', '3', '4', '5', '6', '7', '8'],
+                        help='Zeros after decimal point. 2 by default. Only for --crypto cmc',
                         default=False)
     args = parser.parse_args()
 
@@ -201,6 +255,7 @@ def get_args():
     quote = args.quote.upper()
     value = args.value
     changes = args.changes
+    accuracy = args.accuracy
 
     if fiat is None and crypto is None or fiat == 'fcr':
         fiat = get_fiat_fcr(base=base, quote=quote, value=value)
@@ -210,8 +265,12 @@ def get_args():
         bc = get_crypto_bc(base=base, quote=quote, value=value)
         print(bc)
 
+    # if crypto == 'cmc':
+    #     cmc = get_crypto_cmc(base=base, quote=quote, value=value, changes=changes)
+    #     print(cmc)
+
     if crypto == 'cmc':
-        cmc = get_crypto_cmc(base=base, quote=quote, value=value, changes=changes)
+        cmc = get_cmc_api_currency(symbol=quote, accuracy=accuracy, base=base, changes=changes)
         print(cmc)
 
 
